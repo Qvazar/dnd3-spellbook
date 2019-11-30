@@ -107,6 +107,7 @@ export async function initialise() : Promise<void> {
         
         async function onSuccess(this: IDBRequest<IDBDatabase>, e: Event): Promise<any> {
             await fetchSpells(this.result, upgraded);
+            _db = this.result;
             resolve();
         }
         
@@ -136,7 +137,7 @@ export async function initialise() : Promise<void> {
 function readFromObjectStore<T>(objectStoreName: string, useStoreFn: (store: IDBObjectStore) => Promise<T>): Promise<T> {
     return new Promise<T>((resolve, reject) => {
         const tr = getDb().transaction(objectStoreName);
-        tr.onerror = (err) => reject(err);
+        tr.onerror = e => reject(tr.error);
 
         const os = tr.objectStore(objectStoreName);
         const val = useStoreFn(os);
@@ -144,12 +145,51 @@ function readFromObjectStore<T>(objectStoreName: string, useStoreFn: (store: IDB
     });
 }
 
-export async function getSpellsByCasterClassAndSpellLevel(casterClass: string, spellLevel: number) : Promise<Spell[]> {
+type FindSpellFilter = null | {
+    not?: {
+        schools?: string[],
+        descriptors?: string[]
+    }
+};
+
+export function findSpells(casterClass: string, spellLevel: number, filter: FindSpellFilter) : Promise<Spell[]> {
     return readFromObjectStore(DB_SPELLS_STORE_NAME, os => {
-        return new Promise((resolve, reject) => {
+        return new Promise<Spell[]>((resolve, reject) => {
             const key: ClassSpellLevel = [casterClass, spellLevel];
-            const getRequest = os.index(DB_INDEX_CLASSANDLEVEL).getAll(key);
-            getRequest.onsuccess = e => resolve(getRequest.result);
+            const spells: Spell[] = [];
+
+            os.index(DB_INDEX_CLASSANDLEVEL).openCursor(key).onsuccess = e => {
+                // @ts-ignore possible null, unknown property
+                const cursor: IDBCursorWithValue | null = e.target.result;
+
+                if (cursor) {
+                    const spell: Spell = cursor.value;
+                    let includeSpell = true;
+
+                    if (filter) {
+                        if (filter.not) {
+                            if (filter.not.descriptors) {
+                                if (filter.not.descriptors.some(dsc => spell.descriptors.includes(dsc))) {
+                                    includeSpell = false;
+                                }
+                            }
+                            if (filter.not.schools) {
+                                if (filter.not.schools.some(school => spell.schools.includes(school))) {
+                                    includeSpell = false;
+                                }
+                            }
+                        }
+                    }
+
+                    if (includeSpell) {
+                        spells.push(spell);
+                    }
+
+                    cursor.continue();
+                } else {
+                    resolve(spells);
+                }
+            };
         });
     });
 }

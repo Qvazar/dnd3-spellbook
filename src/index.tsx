@@ -10,6 +10,8 @@ import * as spellDatabase from "./SpellDatabase";
         spellDatabase.initialise()
     ]);
 
+    console.log(JSON.stringify(await spellDatabase.findSpells("Druid", 3, { not: { descriptors: ["Evil"] } })));
+
     ReactDOM.render(<App />, document.getElementById('root'));
 })();
 
