@@ -3,8 +3,16 @@ import ReactDOM from 'react-dom';
 import './index.css';
 import App from './App';
 import * as serviceWorker from './serviceWorker';
+import * as spellDatabase from "./SpellDatabase";
 
-ReactDOM.render(<App />, document.getElementById('root'));
+(async () => {
+    await Promise.all([
+        spellDatabase.initialise()
+    ]);
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+})();
+
 
 // If you want your app to work offline and load faster, you can change
 // unregister() to register() below. Note this comes with some pitfalls.
