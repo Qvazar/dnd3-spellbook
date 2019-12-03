@@ -152,6 +152,30 @@ type FindSpellFilter = null | {
     }
 };
 
+export function findSchoolsByClass(casterClass: string): Promise<string[]> {
+    return readFromObjectStore(DB_SPELLS_STORE_NAME, os => {
+        return new Promise<string[]>((resolve, reject) => {
+            const keyRange: IDBKeyRange = IDBKeyRange.bound([casterClass, 0], [casterClass, 9]);
+            const schools = new Set<string>();
+
+            os.index(DB_INDEX_CLASSANDLEVEL).openCursor(keyRange).onsuccess = e => {
+                // @ts-ignore possible null, unknown property
+                const cursor: IDBCursorWithValue | null = e.target.result;
+
+                if (cursor) {
+                    const spell: Spell = cursor.value;
+
+                    spell.schools.forEach(s => schools.add(s));
+
+                    cursor.continue();
+                } else {
+                    resolve(schools.);
+                }
+            };
+        });
+    });
+}
+
 export function findSpells(casterClass: string, spellLevel: number, filter: FindSpellFilter) : Promise<Spell[]> {
     return readFromObjectStore(DB_SPELLS_STORE_NAME, os => {
         return new Promise<Spell[]>((resolve, reject) => {

@@ -2,13 +2,14 @@ import React from 'react';
 
 type SpellbookListItemProps = {
     name: string,
-    spellClass: string
+    spellcasterClass: string,
+    spellcasterLevel: number
 };
 
 const SpellbookListItem: React.FC<SpellbookListItemProps> = (props : SpellbookListItemProps) => (
     <li className="spellbooklistitem">
         <div className="spellbooklistitem_name">{props.name}</div>
-        <div className="spellbooklistitem_spellclass">{props.spellClass}</div>
+        <div className="spellbooklistitem_spellcasterclass">Level {props.spellcasterLevel} {props.spellcasterClass}</div>
     </li>
 );
 
@@ -22,8 +23,7 @@ const SpellbookList: React.FC<SpellbookListProps> = (props : SpellbookListProps)
             props.spellbooks.map(spellbook =>
                 <SpellbookListItem 
                     key={spellbook.name} 
-                    name={spellbook.name} 
-                    spellClass={spellbook.spellClass}
+                    {...spellbook}
                 />
             )
         }
