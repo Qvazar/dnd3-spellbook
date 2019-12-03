@@ -4,10 +4,12 @@ import './index.css';
 import App from './App';
 import * as serviceWorker from './serviceWorker';
 import * as spellDatabase from "./SpellDatabase";
+import * as firebase from "./firebase";
 
 (async () => {
     await Promise.all([
-        spellDatabase.initialise()
+        spellDatabase.initialise(),
+        firebase.initialise()
     ]);
 
     console.log(JSON.stringify(await spellDatabase.findSpells("Druid", 3, { not: { descriptors: ["Evil"] } })));
