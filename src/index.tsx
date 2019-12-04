@@ -2,19 +2,25 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
 import App from './App';
+import AuthDialog from "./AuthDialog";
 import * as serviceWorker from './serviceWorker';
 import * as spellDatabase from "./SpellDatabase";
 import * as firebase from "./firebase";
 
 (async () => {
-    await Promise.all([
-        spellDatabase.initialise(),
-        firebase.initialise()
-    ]);
+    await firebase.initialise();
 
-    console.log(JSON.stringify(await spellDatabase.findSpells("Druid", 3, { not: { descriptors: ["Evil"] } })));
+    const rootElement = document.getElementById('root');
 
-    ReactDOM.render(<App />, document.getElementById('root'));
+    if (!firebase.isSignedIn()) {
+        ReactDOM.render(<AuthDialog />, rootElement);
+    } else {
+        await Promise.all([
+            spellDatabase.initialise()
+        ]);
+    
+        ReactDOM.render(<App />, rootElement);
+    }
 })();
 
 

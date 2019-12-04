@@ -169,7 +169,7 @@ export function findSchoolsByClass(casterClass: string): Promise<string[]> {
 
                     cursor.continue();
                 } else {
-                    resolve(schools.);
+                    resolve(Array.from(schools));
                 }
             };
         });
