@@ -1,7 +1,6 @@
 import firebase from "firebase/app";
 import "firebase/analytics";
 import "firebase/auth";
-import "firebase/firestore";
 
 export async function initialise() {
     const response = await fetch('/__/firebase/init.json');

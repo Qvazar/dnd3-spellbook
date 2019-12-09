@@ -2,25 +2,22 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
 import App from './App';
-import AuthDialog from "./AuthDialog";
+import Loading from "./Loading";
 import * as serviceWorker from './serviceWorker';
 import * as spellDatabase from "./SpellDatabase";
 import * as firebase from "./firebase";
 
 (async () => {
-    await firebase.initialise();
-
     const rootElement = document.getElementById('root');
 
-    if (!firebase.isSignedIn()) {
-        ReactDOM.render(<AuthDialog />, rootElement);
-    } else {
-        await Promise.all([
-            spellDatabase.initialise()
-        ]);
-    
-        ReactDOM.render(<App />, rootElement);
-    }
+    ReactDOM.render(<Loading />, rootElement);
+
+    await Promise.all([
+        firebase.initialise(),
+        spellDatabase.initialise()
+    ]);
+
+    ReactDOM.render(<App />, rootElement);
 })();
 
 
