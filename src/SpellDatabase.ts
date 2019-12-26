@@ -3,7 +3,7 @@ const DB_VERSION = 1;
 const DB_SPELLS_STORE_NAME = "spells";
 const DB_INDEX_CLASSANDLEVEL = "classAndLevel";
 const DB_INDEX_DOMAINANDLEVEL = "domainAndLevel";
-const INITIAL_DATA_URL = process.env.REACT_APP_INITIAL_DATA_URL || "./spells.json";
+const INITIAL_DATA_URL = process.env.REACT_APP_SPELLDB_DATA_URL || "./spells.json";
 
 type ClassSpellLevel = [string, number];
 
