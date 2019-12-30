@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
-import { cloneDeep, debounce, isFunction, reduce, pick } from "lodash-es";
+import { useState, useEffect, useReducer } from "react";
+import { cloneDeep, debounce, remove, isEqual } from "lodash-es";
 import { 
     Spellbook,
-    SpellcasterClass
+    SpellcasterClass,
+    SpellSchoolDcModifier,
+    SpellCasterLevelModifier
 } from "./types";
 import {
     listenSpellbook,
@@ -28,113 +30,197 @@ function newSpellbook(name: string) : Spellbook {
     };
 }
 
-const spellbookProps: (keyof Spellbook)[] = [
-    "name",
-    "spellcasterClass",
-    "spellcasterLevel",
-    "abilityModifier",
-    "spellDcModifiers",
-    "spellcasterLevelModifiers",
-    "bannedSpellDescriptors",
-    "bannedSpellSchools",
-    "preparedSpells",
-    "knownSpells",
-    "castSpells"
-];
+const saveSpellbookEventually = debounce(saveSpellbook, DEBOUNCE_TIME);
 
-function createSpellbookStates(spellbook: Spellbook|undefined = undefined) {
-    // const states = spellbookProps.reduce((s, pn) => {
-    //     const [v, set] = useState(spellbook && spellbook[pn]);
-    //     Object.defineProperty(s, pn, { get: () => v});
-    //     Object.defineProperty(s, `set${upperFirst(pn)}`, set);
-    //     return s;
-    // }, {});
-
-    const [name, setName] = useState(spellbook?.name);
-    const [spellcasterClass, setSpellcasterClass] = useState(spellbook?.spellcasterClass);
-    const [spellcasterLevel, setSpellcasterLevel] = useState(spellbook?.spellcasterLevel);
-    const [abilityModifier, setAbilityModifier] = useState(spellbook?.abilityModifier);
-    const [spellDcModifiers, setSpellDcModifiers] = useState(spellbook?.spellDcModifiers);
-    const [spellcasterLevelModifiers, setSpellcasterLevelModifiers] = useState(spellbook?.spellcasterLevelModifiers);
-    const [bannedSpellDescriptors, setBannedSpellDescriptors] = useState(spellbook?.bannedSpellDescriptors);
-    const [bannedSpellSchools, setBannedSpellSchools] = useState(spellbook?.bannedSpellSchools);
-    const [preparedSpells, setPreparedSpells] = useState(spellbook?.preparedSpells);
-    const [knownSpells, setKnownSpells] = useState(spellbook?.knownSpells);
-    const [castSpells, setCastSpells] = useState(spellbook?.castSpells);
-
-    return {
-        name, setName,
-        spellcasterClass, setSpellcasterClass,
-        spellcasterLevel, setSpellcasterLevel,
-        abilityModifier, setAbilityModifier,
-        spellDcModifiers, setSpellDcModifiers,
-        spellcasterLevelModifiers, setSpellcasterLevelModifiers,
-        bannedSpellDescriptors, setBannedSpellDescriptors,
-        bannedSpellSchools, setBannedSpellSchools,
-        preparedSpells, setPreparedSpells,
-        knownSpells, setKnownSpells,
-        castSpells, setCastSpells
-    };
+const LEVEL_SET = "level:set";
+interface SpellbookReducerLevelAction {
+    type: typeof LEVEL_SET,
+    value: number
 }
 
-function setSpellbookStatesFromSpellbook(sbs: SpellbookStates, sb: Spellbook|undefined) {
-    sbs.setName(sb?.name);
-    sbs.setSpellcasterClass(sb?.spellcasterClass);
-    sbs.setSpellcasterLevel(sb?.spellcasterLevel);
-    sbs.setAbilityModifier(sb?.abilityModifier);
-    sbs.setSpellDcModifiers(cloneDeep(sb?.spellDcModifiers));
-    sbs.setSpellcasterLevelModifiers(cloneDeep(sb?.spellcasterLevelModifiers));
-    sbs.setBannedSpellDescriptors(cloneDeep(sb?.bannedSpellDescriptors));
-    sbs.setBannedSpellSchools(cloneDeep(sb?.bannedSpellSchools));
-    sbs.setPreparedSpells(cloneDeep(sb?.preparedSpells));
-    sbs.setKnownSpells(cloneDeep(sb?.knownSpells));
-    sbs.setCastSpells(cloneDeep(sb?.castSpells));
+const CLASS_SET = "class:set";
+interface SpellbookReducerClassAction {
+    type: typeof CLASS_SET,
+    value: SpellcasterClass
 }
 
-type SpellbookStates = ReturnType<typeof createSpellbookStates>;
+const ABILITYMODIFIER_SET = "abilityModifier:set";
+interface SpellbookReducerAbilityModifierAction {
+    type: typeof ABILITYMODIFIER_SET,
+    value: number
+}
 
-async function saveSpellbookStates(sbs: SpellbookStates) {
+const SPELLDCMODIFIER_ADD = "spellDcModifier:add";
+const SPELLDCMODIFIER_REMOVE = "spellDcModifier:remove"
+interface SpellbookReducerSpellDcModifierAction {
+    type: typeof SPELLDCMODIFIER_ADD | typeof SPELLDCMODIFIER_REMOVE,
+    value: SpellSchoolDcModifier
+}
+
+const CASTERLEVELMODIFIER_ADD = "casterLevelModifier:add";
+const CASTERLEVELMODIFIER_REMOVE = "casterLevelModifier:remove";
+interface SpellbookReducerCasterLevelModifierAction {
+    type: typeof CASTERLEVELMODIFIER_ADD | typeof CASTERLEVELMODIFIER_REMOVE,
+    value: SpellCasterLevelModifier
+}
+
+const BANNEDSPELLDESCRIPTOR_ADD = "bannedSpellDescriptor:add";
+const BANNEDSPELLDESCRIPTOR_REMOVE = "bannedSpellDescriptor:remove";
+interface SpellbookReducerBannedSpellDescriptorAction {
+    type: typeof BANNEDSPELLDESCRIPTOR_ADD | typeof BANNEDSPELLDESCRIPTOR_REMOVE,
+    value: string
+}
+
+const PREPAREDSPELL_ADD = "preparedSpell:add";
+const PREPAREDSPELL_REMOVE = "preparedSpell:remove";
+interface SpellbookReducerPreparedSpellAction {
+    type: typeof PREPAREDSPELL_ADD | typeof PREPAREDSPELL_REMOVE,
+    value: string
+}
+
+const KNOWNSPELL_ADD = "knownSpell:add";
+const KNOWNSPELL_REMOVE = "knownSpell:remove";
+interface SpellbookReducerKnownSpellAction {
+    type: typeof KNOWNSPELL_ADD | typeof KNOWNSPELL_REMOVE,
+    value: string
+}
+
+const CASTSPELL_ADD = "castSpell:add";
+const CASTSPELL_REMOVE = "castSpell:remove";
+interface SpellbookReducerCastSpellAction {
+    type: typeof CASTSPELL_ADD | typeof CASTSPELL_REMOVE,
+    value: string
+}
+
+const SPELLBOOK_LOAD = "spellbook:load";
+interface SpellbookReducerLoadAction {
+    type: typeof SPELLBOOK_LOAD,
+    value: Spellbook
+}
+
+export type SpellbookReducerAction =
+    SpellbookReducerAbilityModifierAction
+    | SpellbookReducerBannedSpellDescriptorAction
+    | SpellbookReducerCastSpellAction
+    | SpellbookReducerCasterLevelModifierAction
+    | SpellbookReducerKnownSpellAction
+    | SpellbookReducerPreparedSpellAction
+    | SpellbookReducerClassAction
+    | SpellbookReducerLevelAction
+    | SpellbookReducerSpellDcModifierAction
+    | SpellbookReducerLoadAction;
+
+const spellbookReducer = (commitFn: typeof saveSpellbook) => (spellbook: Spellbook, action: SpellbookReducerAction): Spellbook => {
+    let commit = false;
+
+    function cloneSpellbook() {
+        spellbook = cloneDeep(spellbook);
+        commit = true;
+    }
     
+    switch (action.type) {
+        case CLASS_SET:
+            cloneSpellbook();
+            spellbook.spellcasterClass = action.value;
+            break;
+        case LEVEL_SET:
+            cloneSpellbook();
+            spellbook.spellcasterLevel = action.value;
+            break;
+        case ABILITYMODIFIER_SET:
+            cloneSpellbook();
+            spellbook.abilityModifier = action.value;
+            break;
+        case SPELLDCMODIFIER_ADD:
+            cloneSpellbook();
+            spellbook.spellDcModifiers.push(action.value);
+            break;
+        case SPELLDCMODIFIER_REMOVE:
+            cloneSpellbook();
+            remove(spellbook.spellDcModifiers, (dcMod) => dcMod.school == action.value.school);
+            break;
+        case CASTERLEVELMODIFIER_ADD:
+            cloneSpellbook();
+            spellbook.spellcasterLevelModifiers.push(action.value);
+            break;
+        case CASTERLEVELMODIFIER_REMOVE:
+            cloneSpellbook();
+            remove(spellbook.spellcasterLevelModifiers, (levelMod) => isEqual(levelMod, action.value));
+            break;
+        case BANNEDSPELLDESCRIPTOR_ADD:
+            cloneSpellbook();
+            spellbook.bannedSpellDescriptors.push(action.value);
+            break;
+        case BANNEDSPELLDESCRIPTOR_REMOVE:
+            cloneSpellbook();
+            remove(spellbook.bannedSpellDescriptors, action.value);
+            break;
+        case PREPAREDSPELL_ADD:
+            cloneSpellbook();
+            spellbook.preparedSpells.push(action.value);
+            break;
+        case PREPAREDSPELL_REMOVE:
+            cloneSpellbook();
+            remove(spellbook.preparedSpells, action.value);
+            break;
+        case KNOWNSPELL_ADD:
+            cloneSpellbook();
+            spellbook.knownSpells.push(action.value);
+            break;
+        case KNOWNSPELL_REMOVE:
+            cloneSpellbook();
+            remove(spellbook.knownSpells, action.value);
+            break;
+        case CASTSPELL_ADD:
+            cloneSpellbook();
+            spellbook.castSpells.push(action.value);
+            break;
+        case CASTSPELL_REMOVE:
+            cloneSpellbook();
+            remove(spellbook.castSpells, action.value);
+            break;
+        case SPELLBOOK_LOAD:
+            spellbook = action.value;
+            break;
+    }
+
+    if (commit) {
+        commitFn(spellbook);
+    }
+
+    return spellbook;
 }
 
 export function useSpellbook(spellbookName: string) {
-    let spellbookStates = createSpellbookStates();
     const [error, setError] = useState<Error|undefined>();
     const [loading, setLoading] = useState(true);
-    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-    const saveLater = debounce(async (sb: Spellbook) => {
-        await saveSpellbook(sb);
-        setHasUnsavedChanges(false);
-    }, DEBOUNCE_TIME);
-
-    const enqueueSave = (sbs: SpellbookStates) => {
-        setHasUnsavedChanges(true);
-        saveLater(cloneDeep(pick(sbs, spellbookProps) as Spellbook));
-    }
-
-    // Save effect
-    useEffect(() => {
-        return () => saveLater.flush();
-    }, [spellbookName]);
+    // Save on unmount or spellbook change
+    useEffect(
+        () => () => saveSpellbookEventually.flush(),
+        [spellbookName]
+    );
+    
+    const [spellbook, dispatch] = useReducer(spellbookReducer(saveSpellbookEventually), newSpellbook(spellbookName));
 
     useEffect(() => {
         const unsub = listenSpellbook(
             spellbookName,
             sb => {
-                if (!sb) {
-                    sb = newSpellbook(spellbookName);
+                if (sb) {
+                    dispatch({
+                        type: SPELLBOOK_LOAD,
+                        value: sb
+                    });
                 }
 
-                setError(undefined);
                 setLoading(false);
-
-                if (!hasUnsavedChanges) {
-                    // Don't overwrite current user changes!
-                    setSpellbookStatesFromSpellbook(spellbookStates, sb);
-                }
+                setError(undefined);
             },
-            setError);
+            err => {
+                setLoading(false);
+                setError(err);
+            });
 
         return unsub;
     }, [spellbookName]);
@@ -142,9 +228,8 @@ export function useSpellbook(spellbookName: string) {
     return {
         error,
         loading,
-        ...spellbookStates,
-        hasUnsavedChanges,
-        save
+        spellbook,
+        dispatch
     };
 }
 
