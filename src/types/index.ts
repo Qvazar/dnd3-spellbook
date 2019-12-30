@@ -1,20 +1,30 @@
-export type SpellDescriptorCasterLevelModifier = {
+export enum SpellcasterClass {
+    Bard = "Bard",
+    Cleric = "Cleric",
+    Druid = "Druid",
+    Paladin = "Paladin",
+    Ranger = "Ranger",
+    Sorcerer = "Sorcerer",
+    Wizard = "Wizard"
+}
+
+export interface SpellDescriptorCasterLevelModifier {
     descriptor: string,
     modifier: number
 }
 
 export type SpellCasterLevelModifier = SpellDescriptorCasterLevelModifier;
 
-export type SpellSchoolDcModifier = {
+export interface SpellSchoolDcModifier {
     school: string,
     modifier: number
 }
 
 export type SpellDcModifier = SpellSchoolDcModifier;
 
-export type Spellbook = {
+export interface Spellbook {
     name: string,
-    spellcasterClass: string,
+    spellcasterClass: SpellcasterClass,
     spellcasterLevel: number,
     abilityModifier: number,
     spellDcModifiers: SpellDcModifier[],

@@ -1,13 +1,19 @@
 import React from 'react';
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import List from '@material-ui/core/List';
-import ListItem from '@material-ui/core/ListItem';
-import ListItemIcon from '@material-ui/core/ListItemIcon';
-import ListItemText from '@material-ui/core/ListItemText';
-import Fab from "@material-ui/core/Fab";
-import AddIcon from '@material-ui/icons/Add';
+import {
+    Fab,
+    Grid,
+    List,
+    ListItem,
+    ListItemIcon,
+    ListItemText
+} from "@material-ui/core";
+import { Add as AddIcon } from "@material-ui/icons";
+import { makeStyles } from '@material-ui/core/styles';
 import Error from "./Error";
 import Loading from "./Loading";
+import SpellbookCreateDialog from "./SpellbookCreateDialog";
 import { useSpellbooks } from "./spellbookHooks";
 import { Spellbook } from "./types";
 
@@ -16,7 +22,7 @@ type SpellbookListItemProps = {
 };
 
 const SpellbookListItem: React.FC<SpellbookListItemProps> = ({spellbook}) => (
-    <Link to={spellbook.name}>
+    <Link to={`/spellbooks/${spellbook.name}`}>
         <ListItem className="spellbooklistitem">
             <ListItemText>
                 <div className="spellbooklistitem_name">{spellbook.name}</div>
@@ -29,8 +35,20 @@ const SpellbookListItem: React.FC<SpellbookListItemProps> = ({spellbook}) => (
     </Link>
 );
 
+const useStyles = makeStyles({
+    root: {
+        height: "100%"
+    }
+});
+
 const SpellbookListView: React.FC = () => {
     const [error, spellbooks] = useSpellbooks();
+    const [showCreateDialog, setShowCreateDialog] = useState(false);
+    const classes = useStyles();
+
+    const handleCreate = () => {
+        setShowCreateDialog(true);
+    };
 
     if (error) {
         return <Error error={error} />;
@@ -41,21 +59,30 @@ const SpellbookListView: React.FC = () => {
     }
 
     return (
-        <div className="spellbooklist">
-            <List>
-                {
-                    spellbooks.map(spellbook =>
-                        <SpellbookListItem 
-                            key={spellbook.name} 
-                            spellbook={spellbook}
-                        />
-                    )
-                }
-            </List>
-            <Fab color="primary" aria-label="add">
-                <AddIcon />
-            </Fab>
-        </div>
+        <Grid container className={classes.root} direction="column" wrap="nowrap">
+            <Grid item xs={true}>
+                <List>
+                    {
+                        spellbooks.map(spellbook =>
+                            <SpellbookListItem 
+                                key={spellbook.name} 
+                                spellbook={spellbook}
+                            />
+                        )
+                    }
+                </List>
+            </Grid>
+            <Grid item xs="auto">
+                <Grid container justify="center">
+                    <Grid item>
+                        <Fab color="primary" aria-label="create" onClick={handleCreate}>
+                            <AddIcon />
+                        </Fab>
+                    </Grid>
+                </Grid>
+            </Grid>
+            <SpellbookCreateDialog open={showCreateDialog} setOpen={setShowCreateDialog} />
+        </Grid>
     );
 };
 
